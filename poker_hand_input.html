@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Hand Input</title>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        #root {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 1rem;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .input {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1.25rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .button-grid-5 {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .suit-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .button {
+            padding: 0.75rem;
+            font-size: 1.25rem;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .button:active {
+            opacity: 0.8;
+        }
+        .button-blue { background-color: #3b82f6; }
+        .button-red { background-color: #ef4444; }
+        .button-green { background-color: #10b981; }
+        .button-yellow { background-color: #f59e0b; }
+        .button-purple { background-color: #8b5cf6; }
+        .button-gray { background-color: #6b7280; }
+        .result {
+            background-color: #ffffff;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .api-key-container {
+            margin-top: auto;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .api-key-input {
+            flex-grow: 1;
+            padding: 0.5rem;
+            font-size: 1rem;
+            height: 2.5rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .card {
+            width: 60px;
+            height: 90px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            margin: 0.25rem;
+        }
+        .card.discard {
+            opacity: 0.5;
+        }
+        .card-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        .expected-value {
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const Button = ({ onClick, disabled, children, className, style }) => (
+            <button
+                onClick={onClick}
+                disabled={disabled}
+                className={`button ${className}`}
+                style={style}
+            >
+                {children}
+            </button>
+        );
+
+        const Input = ({ value, readOnly, className, placeholder, onChange }) => (
+            <input
+                type="text"
+                value={value}
+                readOnly={readOnly}
+                className={`input ${className}`}
+                placeholder={placeholder}
+                onChange={onChange}
+            />
+        );
+
+        const Card = ({ rank, suit, hold }) => {
+            const suitSymbol = { 'h': '❤️', 'd': '♦️', 'c': '♣️', 's': '♠️' }[suit] || suit;
+            const className = `card ${hold ? '' : 'discard'}`;
+            return (
+                <div className={className}>
+                    <div>{rank.toUpperCase()}</div>
+                    <div>{suitSymbol}</div>
+                </div>
+            );
+        };
+
+        const PokerHandInput = () => {
+            const [input, setInput] = useState('');
+            const [result, setResult] = useState(null);
+            const [apiKey, setApiKey] = useState('');
+
+            const rankGroups = [
+                ['2', '3', '4', '5'],
+                ['6', '7', '8', '9'],
+                ['T', 'J', 'Q', 'K', 'A']
+            ];
+            const suitButtons = ['❤️', '♦️', '♣️', '♠️'];
+            const suitMap = { '❤️': 'h', '♦️': 'd', '♣️': 'c', '♠️': 's' };
+
+            // Load API key from sessionStorage when component mounts
+            useEffect(() => {
+                const storedApiKey = sessionStorage.getItem('pokerApiKey');
+                if (storedApiKey) {
+                    setApiKey(storedApiKey);
+                }
+            }, []);
+
+            // Save API key to sessionStorage whenever it changes
+            useEffect(() => {
+                if (apiKey) {
+                    sessionStorage.setItem('pokerApiKey', apiKey);
+                } else {
+                    sessionStorage.removeItem('pokerApiKey');
+                }
+            }, [apiKey]);
+
+            const handleButtonClick = (value) => {
+                if (input.length < 10) {
+                    setInput(input + (suitMap[value] || value.toLowerCase()));
+                }
+            };
+
+            const handleBackspace = () => {
+                setInput(input.slice(0, -1));
+            };
+
+            const handleSubmit = async () => {
+                if (input.length === 10) {
+                    const headers = {
+                        'Content-Type': 'application/json',
+                    };
+                    if (apiKey) {
+                        headers['x-api-key'] = apiKey;
+                    }
+
+                    try {
+                        const response = await fetch(`/analyze_hand?hand=${input}`, {
+                            method: 'POST',
+                            headers: headers,
+                        });
+                        if (!response.ok) {
+                            throw new Error('API request failed');
+                        }
+                        const data = await response.json();
+                        setResult(data);
+                    } catch (error) {
+                        console.error('Error:', error);
+                        setResult({ error: error.message });
+                    }
+                }
+            };
+
+            const handleClear = () => {
+                setInput('');
+                setResult(null);
+            };
+
+            const handlePaste = async () => {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        setApiKey(text);
+                    } catch (err) {
+                        console.error('Failed to read clipboard contents:', err);
+                        fallbackPaste();
+                    }
+                } else {
+                    fallbackPaste();
+                }
+            };
+
+            const fallbackPaste = () => {
+                const textarea = document.createElement('textarea');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = 0;
+                document.body.appendChild(textarea);
+                textarea.focus();
+                document.execCommand('paste');
+                const text = textarea.value;
+                document.body.removeChild(textarea);
+                setApiKey(text);
+            };
+
+            const handleApiKeyChange = (e) => {
+                setApiKey(e.target.value);
+            };
+
+            return (
+                <React.Fragment>
+                    <Input
+                        value={input}
+                        readOnly
+                        placeholder="Enter your hand"
+                    />
+
+                    {rankGroups.map((group, groupIndex) => (
+                        <div key={groupIndex} className={group.length === 5 ? "button-grid-5" : "button-grid"}>
+                            {group.map((rank) => (
+                                <Button
+                                    key={rank}
+                                    onClick={() => handleButtonClick(rank)}
+                                    disabled={input.length >= 10}
+                                    className="button-blue"
+                                >
+                                    {rank}
+                                </Button>
+                            ))}
+                        </div>
+                    ))}
+
+                    <div className="suit-grid">
+                        {suitButtons.map((suit, index) => (
+                            <Button
+                                key={suit}
+                                onClick={() => handleButtonClick(suit)}
+                                disabled={input.length >= 10 || input.length < 5}
+                                className="button-green"
+                            >
+                                {suit}
+                            </Button>
+                        ))}
+                    </div>
+
+                    <div className="action-buttons">
+                        <Button onClick={handleBackspace} disabled={input.length === 0} className="button-yellow" style={{flex: 1}}>
+                            ⌫
+                        </Button>
+                        <Button onClick={handleClear} className="button-red" style={{flex: 1}}>Clear</Button>
+                        <Button onClick={handleSubmit} disabled={input.length !== 10} className="button-purple" style={{flex: 2}}>Submit</Button>
+                    </div>
+
+                    {result && !result.error && (
+                        <div className="result">
+                            <div className="card-container">
+                                {result.hold.map((card, index) => (
+                                    <Card
+                                        key={index}
+                                        rank={card[0]}
+                                        suit={card[2] || card[1]}
+                                        hold={card !== '_'}
+                                    />
+                                ))}
+                            </div>
+                            <div className="expected-value">
+                                Expected Value: {result.best_hold_analysis[Object.keys(result.best_hold_analysis)[0]].expected_val.toFixed(4)}
+                            </div>
+                        </div>
+                    )}
+
+                    {result && result.error && (
+                        <div className="result">
+                            <h3>Error:</h3>
+                            <p>{result.error}</p>
+                        </div>
+                    )}
+
+                    <div className="api-key-container">
+                        <Input
+                            value={apiKey}
+                            onChange={handleApiKeyChange}
+                            className="api-key-input"
+                            placeholder="Enter API Key"
+                        />
+                        <Button onClick={handlePaste} className="button-gray" style={{height: '2.5rem', width: '2.5rem', padding: '0'}}>
+                            📋
+                        </Button>
+                    </div>
+                </React.Fragment>
+            );
+        };
+
+        ReactDOM.render(<PokerHandInput />, document.getElementById('root'));
+    </script>
+</body>
+</html>
